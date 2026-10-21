@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>全聯條碼快速查詢系統 (10月版)</title>
+    <!-- Meta for PWA & Mobile Web App -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="全聯條碼">
+    <meta name="theme-color" content="#004ea2">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="APP圖示.png">
+    <link rel="apple-touch-icon" href="APP圖示.png">
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- App Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    
+    <script>
+        // 確保任何時候點擊進入按鈕都能第一時間切換畫面
+        function enterApp() {
+            var cover = document.getElementById('coverPage');
+            var app = document.getElementById('appContainer');
+            if (cover) {
+                cover.style.opacity = '0';
+                cover.style.visibility = 'hidden';
+                cover.style.display = 'none';
+                cover.classList.add('hidden');
+            }
+            if (app) {
+                app.classList.remove('hidden');
+                app.style.display = 'flex';
+            }
+            try { localStorage.setItem('pxmart_barcode_entered_10m', '1'); } catch (e) {}
+            var s = document.getElementById('searchInput');
+            if (s) setTimeout(function() { s.focus(); }, 200);
+        }
+        // 若使用者先前已進入過，直接跳過封面秒開
+        try {
+            if (localStorage.getItem('pxmart_barcode_entered_10m') === '1') {
+                document.addEventListener('DOMContentLoaded', enterApp);
+            }
+        } catch (e) {}
+    </script>
+</head>
+<body>
+
+    <!-- 1. 全螢幕封面頁 (Cover Splash Screen) -->
+    <div id="coverPage" class="cover-page">
+        <div class="cover-backdrop"></div>
+        <div class="cover-card">
+            <div class="cover-brand-header">
+                <span class="px-tag"><i class="fa-solid fa-store"></i> PX MART 全聯福利中心</span>
+                <span class="version-tag"><i class="fa-solid fa-calendar-check"></i> 2026年10月最新版</span>
+            </div>
+            
+            <h1 class="cover-title">
+                條碼智慧<span>查詢系統</span>
+            </h1>
+            <p class="cover-desc">
+                專為賣場補貨、盤點、收銀與貨架管理打造的高效查詢工具。<br>
+                完整收錄 <strong id="coverProductCount">202 款</strong> 卡迪那、可樂果、元本山、萬歲牌等休閒食品條碼。
+            </p>
+
+            <div class="cover-feature-pills">
+                <span><i class="fa-solid fa-bolt"></i> 零秒瞬查</span>
+                <span><i class="fa-solid fa-barcode"></i> 高清向量條碼</span>
+                <span><i class="fa-solid fa-star"></i> 常用商品收藏</span>
+                <span><i class="fa-solid fa-camera"></i> 相機掃碼辨識</span>
+            </div>
+
+            <div class="cover-actions">
+                <button id="btnEnterApp" class="btn-cover-primary" onclick="enterApp()">
+                    <span>進入查詢系統</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button id="btnCoverScan" class="btn-cover-secondary" onclick="enterApp(); if (window.pxApp) window.pxApp.openCameraModal && window.pxApp.openCameraModal();">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>相機掃碼</span>
+                </button>
+            </div>
+
+            <div class="cover-footer">
+                <span>&copy; 2026 全聯休閒食品條碼手冊 &bull; 離線可運行 PWA</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 主應用程式介面 (Main App Container) -->
+    <div id="appContainer" class="app-container hidden">
+        
+        <!-- 頂部固定導覽列 (Sticky Header) -->
+        <header class="app-header">
+            <div class="header-main-row">
+                <!-- 品牌 Logo 與標題 -->
+                <div class="brand-logo-area" id="btnLogoHome" title="回到首頁/封面">
+                    <img src="APP圖示.png" alt="PX Mart Logo" class="brand-app-icon" onerror="this.style.display='none'">
+                    <div class="brand-text-group">
+                        <div class="brand-sub">PX MART 全聯福利中心</div>
+                        <h2 class="brand-title">條碼查詢系統 <span class="badge-month">10月版</span></h2>
+                    </div>
+                </div>
+
+                <!-- 頂部快捷操作區 -->
+                <div class="header-actions">
+                    <button id="btnQuickCamera" class="header-action-btn" title="相機掃描條碼">
+                        <i class="fa-solid fa-camera"></i>
+                        <span class="btn-label">掃碼</span>
+                    </button>
+                    <button id="btnFavoritesTab" class="header-action-btn" title="常用商品收藏夾">
+                        <i class="fa-solid fa-star"></i>
+                        <span class="btn-label">常用</span>
+                        <span id="favCountBadge" class="fav-badge" style="display: none;">0</span>
+                    </button>
+                    <button id="btnHighContrast" class="header-action-btn" title="切換高對比掃描模式">
+                        <i class="fa-solid fa-circle-half-stroke"></i>
+                        <span class="btn-label">對比</span>
+                    </button>
+                    <button id="btnPrintCatalog" class="header-action-btn" title="列印條碼冊 / 盤點清單">
+                        <i class="fa-solid fa-print"></i>
+                        <span class="btn-label">列印</span>
+                    </button>
+                    <button id="btnShowHelp" class="header-action-btn" title="使用說明">
+                        <i class="fa-solid fa-circle-question"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 全方位智慧搜尋欄 (Omni-Search Bar) -->
+            <div class="search-section">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass search-leading-icon"></i>
+                    <input type="text" id="searchInput" 
+                           placeholder="搜尋品名 (洋芋片/腰果)、編碼 (1-1-04)、全聯貨號 (27010530) 或條碼..." 
+                           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                    <button id="btnClearSearch" class="btn-clear-input" style="display: none;" title="清除搜尋">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 8 大品牌分類滾動導覽列 (Brand Category Tabs) -->
+        <section class="brand-tabs-wrapper">
+            <button class="scroll-arrow left" id="btnScrollTabsLeft" aria-label="向左滾動"><i class="fa-solid fa-chevron-left"></i></button>
+            <div class="brand-tabs-scroll" id="brandTabsContainer">
+                <!-- 由 JS 動態產生各分類按鈕 (全部、常用、卡迪那、可樂果、元本山、萬歲牌...) -->
+            </div>
+            <button class="scroll-arrow right" id="btnScrollTabsRight" aria-label="向右滾動"><i class="fa-solid fa-chevron-right"></i></button>
+        </section>
+
+        <!-- 子系列篩選膠囊標籤 (Subcategory Filter Chips) -->
+        <section class="subcategory-chips-bar" id="subcategoryChipsBar">
+            <div class="chips-scroll" id="subcategoryChipsContainer">
+                <!-- 由 JS 動態產生子分類膠囊 -->
+            </div>
+        </section>
+
+        <!-- 統計與檢視切換工具列 (Filter Status Bar) -->
+        <section class="status-toolbar">
+            <div class="status-info">
+                <span class="active-category-title" id="activeCategoryTitle">全部商品</span>
+                <span class="items-count-badge" id="itemsCountBadge">共 202 筆</span>
+            </div>
+            <div class="view-controls">
+                <button id="btnViewGrid" class="view-btn active" title="網格檢視">
+                    <i class="fa-solid fa-table-cells-large"></i>
+                </button>
+                <button id="btnViewList" class="view-btn" title="緊湊條列檢視">
+                    <i class="fa-solid fa-list-ul"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- 主體內容商品網格 (Product Grid Area) -->
+        <main class="main-content-area">
+            <!-- 搜尋無結果時的提示 -->
+            <div id="emptyResultsState" class="empty-state-box" style="display: none;">
+                <div class="empty-icon-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <h3 class="empty-title">查無相符商品條碼</h3>
+                <p class="empty-desc">請嘗試輸入商品關鍵字、全聯 8 碼貨號、國際條碼末碼，或切換至其他分類。</p>
+                <button id="btnResetFilters" class="btn-empty-reset">
+                    <i class="fa-solid fa-rotate-left"></i> 重置篩選條件
+                </button>
+            </div>
+
+            <!-- 商品條碼卡網格容器 -->
+            <div class="product-cards-grid" id="productGrid">
+                <!-- JS 動態渲染所有商品卡片 -->
+            </div>
+        </main>
+
+        <!-- 底部頁尾資訊 (Footer) -->
+        <footer class="app-footer">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fa-solid fa-barcode"></i> 全聯條碼快速查詢系統 (2026年10月版)
+                </div>
+                <div class="footer-note">
+                    支援 POS 條碼槍螢幕掃描 &bull; 離線無網路可用 &bull; 共收錄 <span id="footerProductCount">202</span> 項商品
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 3. 條碼放大與掃描專用彈窗 (Barcode Zoom & Scan Modal) -->
+    <div id="barcodeModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-container">
+            <!-- 彈窗頂部 -->
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-badges-row">
+                        <span class="modal-shelf-code" id="modalShelfCode">1-1-04</span>
+                        <span class="modal-category-tag" id="modalCategoryTag">1.卡迪那</span>
+                        <span class="modal-subcat-tag" id="modalSubcatTag">鮮切系列</span>
+                    </div>
+                    <h3 class="modal-product-title" id="modalProductTitle">卡迪那波浪洋芋片-海鹽口味115g</h3>
+                </div>
+                <button id="btnModalClose" class="btn-modal-close" aria-label="關閉視窗">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- 彈窗主體 -->
+            <div class="modal-body">
+                <!-- 雙碼快速複製資訊列 -->
+                <div class="code-cards-row">
+                    <div class="code-pill-card px-code-card">
+                        <div class="code-card-label"><i class="fa-solid fa-tag"></i> 全聯內部貨號 (8碼)</div>
+                        <div class="code-card-value-row">
+                            <span class="code-val font-mono" id="modalPxCode">27010530</span>
+                            <button id="btnCopyPxCode" class="btn-copy-chip" title="複製全聯貨號">
+                                <i class="fa-regular fa-copy"></i> 複製
+                            </button>
+                        </div>
+                    </div>
+                    <div class="code-pill-card barcode-card">
+                        <div class="code-card-label"><i class="fa-solid fa-barcode"></i> 國際條碼 (13碼 EAN)</div>
+                        <div class="code-card-value-row">
+                            <span class="code-val font-mono" id="modalBarcode">4710022062066</span>
+                            <button id="btnCopyBarcode" class="btn-copy-chip" title="複製國際條碼">
+                                <i class="fa-regular fa-copy"></i> 複製
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 條碼模式切換頁籤 -->
+                <div class="barcode-mode-tabs">
+                    <button id="btnModeOriginal" class="mode-tab-btn active">
+                        <i class="fa-solid fa-image"></i> 原廠標籤卡圖
+                    </button>
+                    <button id="btnModeDigital" class="mode-tab-btn">
+                        <i class="fa-solid fa-barcode"></i> 高清晰電子條碼 (POS極速掃瞄)
+                    </button>
+                </div>
+
+                <!-- 條碼高對比純白展示區 (特別強化掃描槍反射率與可讀性) -->
+                <div class="scanner-canvas-wrapper" id="scannerCanvasWrapper">
+                    <!-- 模式 1：原廠標籤圖片 -->
+                    <div class="original-barcode-view" id="viewOriginalImage">
+                        <img id="modalBarcodeImg" src="" alt="原廠條碼標籤" class="modal-raw-image">
+                    </div>
+
+                    <!-- 模式 2：SVG 向量極致清晰條碼 -->
+                    <div class="digital-barcode-view" id="viewDigitalBarcode" style="display: none;">
+                        <div class="digital-barcode-card">
+                            <div class="digital-header-code" id="digitalCodeTitle">1-1-04</div>
+                            <div class="digital-header-name" id="digitalNameTitle">品名載入中...</div>
+                            <div class="digital-svg-container" id="digitalSvgContainer">
+                                <!-- SVG 向量條碼注入處 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 掃描輔助與控制按鈕 -->
+                <div class="modal-control-row">
+                    <button id="btnBrightnessBoost" class="btn-tool" title="一鍵螢幕調亮，消除掃碼槍反光">
+                        <i class="fa-solid fa-sun"></i> 螢幕調亮防反光
+                    </button>
+                    <button id="btnToggleFavModal" class="btn-tool" title="加入常用">
+                        <i class="fa-regular fa-star"></i> <span>加入常用</span>
+                    </button>
+                    <button id="btnCopyAllInfo" class="btn-tool" title="複製完整品名、貨號與條碼">
+                        <i class="fa-regular fa-clipboard"></i> 複製完整資訊
+                    </button>
+                </div>
+
+                <!-- 左右切換商品導覽按鈕 -->
+                <div class="modal-nav-row">
+                    <button id="btnModalPrev" class="btn-modal-nav" title="上一件商品 (鍵盤 ← 鍵)">
+                        <i class="fa-solid fa-chevron-left"></i> 上一件
+                    </button>
+                    <span class="modal-nav-counter" id="modalNavCounter">1 / 202</span>
+                    <button id="btnModalNext" class="btn-modal-nav" title="下一件商品 (鍵盤 → 鍵)">
+                        下一件 <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 相機掃碼辨識彈窗 (Camera Barcode Scanner Modal) -->
+    <div id="cameraModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-container camera-modal-container">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <h3 class="modal-product-title"><i class="fa-solid fa-camera"></i> 相機掃描條碼查詢</h3>
+                    <p class="modal-subtitle-text">請將商品條碼對準鏡頭取景框，即可瞬間查詢對應品項與貨號</p>
+                </div>
+                <button id="btnCameraClose" class="btn-modal-close" aria-label="關閉相機">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body camera-modal-body">
+                <div class="camera-viewport-wrap">
+                    <video id="cameraVideo" playsinline autoplay muted class="camera-video"></video>
+                    <div class="camera-scan-reticle">
+                        <div class="reticle-laser"></div>
+                    </div>
+                    <div id="cameraStatusMsg" class="camera-status-msg">正在啟動相機...</div>
+                </div>
+
+                <div class="camera-fallback-actions">
+                    <label class="btn-file-upload">
+                        <i class="fa-solid fa-upload"></i> 上傳條碼照片辨識
+                        <input type="file" id="cameraFileInput" accept="image/*" style="display: none;">
+                    </label>
+                    <div class="manual-input-row">
+                        <input type="text" id="cameraManualInput" placeholder="或手動輸入 8 碼貨號 / 13 碼條碼..." class="manual-input">
+                        <button id="btnCameraManualSearch" class="btn-manual-search">查詢</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 使用說明彈窗 (Help Guide Modal) -->
+    <div id="helpModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-container help-modal-container">
+            <div class="modal-header">
+                <h3 class="modal-product-title"><i class="fa-solid fa-book-open"></i> 全聯條碼系統 使用指南</h3>
+                <button id="btnHelpClose" class="btn-modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body help-modal-body">
+                <div class="help-section">
+                    <h4><i class="fa-solid fa-magnifying-glass"></i> 多元智慧搜尋</h4>
+                    <p>搜尋欄支援多種搜尋維度：輸入中文品名（如「<strong>牛排洋芋片</strong>」、「<strong>海苔</strong>」）、貨架編號（如「<strong>1-1-04</strong>」）、全聯 8 碼內部貨號（如「<strong>27010530</strong>」）或 13 碼國際條碼末幾碼，即可瞬時過濾。</p>
+                </div>
+                <div class="help-section">
+                    <h4><i class="fa-solid fa-star"></i> 常用商品收藏</h4>
+                    <p>在商品卡片或大卡彈窗上點擊「<strong>⭐ 收藏</strong>」，該商品會加入頂部「常用」分頁，方便每天頻繁結帳或盤點的商品隨時一鍵調出！</p>
+                </div>
+                <div class="help-section">
+                    <h4><i class="fa-solid fa-barcode"></i> 條碼槍掃描強化</h4>
+                    <p>點擊任何商品進入「條碼放大視窗」，可切換至「<strong>高清晰電子條碼</strong>」或點選「<strong>螢幕調亮</strong>」，專門消除反光，確保 POS 條碼槍或手機相機 100% 一掃即過。</p>
+                </div>
+                <div class="help-section">
+                    <h4><i class="fa-solid fa-keyboard"></i> 鍵盤快捷鍵 (電腦版)</h4>
+                    <ul>
+                        <li><kbd>/</kbd> 或 <kbd>Ctrl+F</kbd>：快速聚焦搜尋欄</li>
+                        <li><kbd>←</kbd> / <kbd>→</kbd>：在放大彈窗中切換上一件 / 下一件商品</li>
+                        <li><kbd>Esc</kbd>：關閉任何彈窗</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <h4><i class="fa-solid fa-mobile-screen"></i> 安裝至手機主畫面 (PWA)</h4>
+                    <p>在 iPhone Safari 點選分享按鈕 &gt;「<strong>加入主畫面</strong>」，或在 Android Chrome 點選「<strong>安裝應用程式</strong>」，即可將本系統像原生 APP 一樣放於手機桌面，離線也能秒開！</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. 浮動 Toast 提示通知元件 -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="products.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

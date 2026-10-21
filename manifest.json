@@ -1,0 +1,24 @@
+{
+  "name": "全聯條碼快速查詢系統 (10月版)",
+  "short_name": "全聯條碼",
+  "description": "全聯福利中心 商品條碼快速查詢與掃描輔助系統 2026年10月最新版",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#004ea2",
+  "theme_color": "#004ea2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./APP圖示.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./APP圖示.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
